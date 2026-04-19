@@ -1,4 +1,190 @@
-<fieldset class="settings">
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>질산은(AgNO3)과 구리(Cu)의 반응 시뮬레이션</title>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --panel-color: #ffffff;
+            --primary-color: #1e293b;
+            --accent-color: #3b82f6;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--bg-color);
+            font-family: 'Pretendard', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: var(--primary-color);
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        canvas {
+            background-color: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            max-width: 100%;
+        }
+
+        .controls {
+            margin: 25px 0;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 14px 32px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        button.reset {
+            background-color: #ef4444;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin: 0 auto 20px auto; 
+            font-size: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 12px 24px;
+            border-radius: 50px;
+            width: fit-content;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .dot { width: 16px; height: 16px; border-radius: 50%; }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+            gap: 20px;
+            text-align: left;
+        }
+        
+        .title-area h1 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 26px;
+        }
+        
+        .title-area p {
+            margin: 0;
+            color: #64748b;
+            font-size: 15px;
+        }
+
+        .settings {
+            border: 2px solid #cbd5e1;
+            background: var(--panel-color);
+            padding: 5px 20px 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin: 0;
+            min-width: 220px;
+        }
+        .settings legend {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--primary-color);
+            padding: 0 10px;
+        }
+        .settings-inner {
+            display: flex;
+            flex-direction: row; 
+            gap: 20px; 
+            align-items: center;
+        }
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 14px;
+        }
+        .slider-group input[type=range] {
+            width: 106px; 
+            cursor: pointer;
+            margin: 0 auto;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 20px auto 0 auto; 
+            width: 90%; 
+        }
+
+        .stat-card {
+            background: var(--panel-color);
+            padding: 12px 10px 10px 10px; 
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--accent-color);
+            flex: 1;
+        }
+
+        .stat-card h4 { margin: 0 0 6px 0; font-size: 17px; color: #64748b; word-break: keep-all; text-align: center; }
+        .stat-card p { margin: 0; font-size: 18px; font-weight: 800; text-align: center; line-height: 24px; } 
+
+        #solColorBox {
+            width: 80%;
+            height: 24px; 
+            margin: 0 auto;
+            border-radius: 6px;
+            border: 2px solid #cbd5e1;
+            background-color: #ffffff;
+            transition: background-color 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-section">
+        <div class="title-area">
+            <h1>질산은(AgNO₃)과 구리(Cu)의 반응</h1>
+            <p>은 이온(Ag⁺) 2개와 구리(Cu) 1개가 동시에 반응하는 화학 양론적 시뮬레이션</p>
+        </div>
+        
+        <fieldset class="settings">
             <legend>설정</legend>
             <div class="settings-inner">
                 <div class="slider-group">
@@ -13,8 +199,18 @@
         </fieldset>
     </div>
 
+    <!-- 범례 패널 -->
+    <div class="legend">
+        <div class="legend-item"><div class="dot" style="background: #e2e8f0; border: 1px solid #94a3b8;"></div>은 이온 (Ag⁺)</div>
+        <div class="legend-item"><div class="dot" style="background: #475569; border: 1px solid #1e293b;"></div>석출된 은 (Ag)</div>
+        <div class="legend-item"><div class="dot" style="background: rgba(255, 255, 255, 0.6); border: 2px solid #1e40af;"></div>구리 이온 (Cu²⁺)</div>
+        <div class="legend-item"><div class="dot" style="background: #facc15;"></div>전자 (e⁻)</div>
+        <div class="legend-item"><div class="dot" style="background: #ffffff; border: 1px solid #cbd5e1;"></div>질산 이온 (NO₃⁻)</div>
+    </div>
+
     <canvas id="reactionCanvas" width="800" height="500"></canvas>
 
+    <!-- 대시보드 패널 -->
     <div class="dashboard">
         <div class="stat-card">
             <h4>석출된 은 (Ag)</h4>
@@ -26,15 +222,408 @@
         </div>
         <div class="stat-card">
             <h4>이동한 전자 (e⁻)</h4>
+            <p id="eCount">0 개</p>
+        </div>
+        <div class="stat-card">
+            <h4>수용액의 색</h4>
+            <div id="solColorBox"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn">실험 시작</button>
+        <button id="resetBtn" class="reset">초기화</button>
+    </div>
+</div>
+
 <script>
     const canvas = document.getElementById('reactionCanvas');
-// ... (중략) ...
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // 슬라이더 요소 가져오기
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    const ionCountSlider = document.getElementById('ionCountSlider');
+    const ionCountValue = document.getElementById('ionCountValue');
+
+    let ions = [];
+    let electrons = [];
+    let precipitatedAg = [];
+    let isRunning = false;
     let cuIonizedCount = 0;
     let totalElectronsMoved = 0; // 누적된 전자 이동 횟수를 기록할 변수 추가
     
-    // 자바스크립트 동적 변수 시작 값 수정
+    // 기본 시작 값 수정 (속도 2.0배, 은 이온 24개)
     let initialAgCount = 24;
     let maxCuIon = 12;
     let speedMultiplier = 2.0;
 
     // 실제 이온의 상대적 크기(반지름) 반영
+    const ION_RADII = {
+        'Ag+': 24,     // 중간 크기 (기준)
+        'Ag': 26,      // 은 원자 (전자를 얻어 양이온보다 약간 큼)
+        'Cu2+': 16,    // 가장 작음 (전자를 2개 잃고 껍질 수가 적음)
+        'NO3-': 36     // 가장 큼 (다원자 이온)
+    };
+    const SURFACE_X = 105; // 구리 금속의 표면 x 좌표
+
+    const ION_TYPES = {
+        AG: 'Ag+',
+        CU2: 'Cu2+',
+        NO3: 'NO3-'
+    };
+
+    // 이온별 상대적 이동도(Ion Mobility) 비율 설정
+    const MOBILITY_RATES = {
+        'Ag+': 1.0,      // 기준
+        'Cu2+': 0.86,    // 수화 반지름이 커서 가장 느림
+        'NO3-': 1.15     // 상대적으로 가장 빠름
+    };
+
+    function drawChemSymbol(context, x, y, type) {
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        if (type === ION_TYPES.AG) {
+            context.font = 'bold 16px Arial';
+            context.fillText('Ag⁺', x, y + 1);
+        } else if (type === ION_TYPES.CU2) {
+            context.font = 'bold 12px Arial'; // 작은 입자에 맞춰 글자 축소
+            context.fillText('Cu²⁺', x, y + 1);
+        } else if (type === ION_TYPES.NO3) {
+            // 질산 이온은 윗첨자 마이너스(-)를 확실하게 띄우기 위해 개별 좌표로 분할 렌더링
+            context.textAlign = 'left';
+            context.font = 'bold 19px Arial';
+            context.fillText('NO', x - 18, y + 2);
+            context.font = 'bold 12px Arial';
+            context.fillText('3', x + 9, y + 10);
+            
+            // 마이너스(-) 기호를 크고 확실한 윗첨자 위치에 고정
+            context.font = 'bold 16px Arial';
+            context.fillText('-', x + 17, y - 6);
+            
+            context.textAlign = 'center'; // 텍스트 정렬 원래 상태로 복구
+        } else if (type === 'Ag') {
+            context.font = 'bold 17px Arial';
+            context.fillText('Ag', x, y + 1); 
+        }
+    }
+
+    class Electron {
+        constructor(startX, startY, targetIon) {
+            this.x = startX;
+            this.y = startY;
+            this.targetIon = targetIon;
+        }
+
+        update() {
+            // 반응할 은 이온을 향해 미끄러지듯 이동 (속도 배율 적용)
+            const targetX = SURFACE_X + this.targetIon.radius;
+            const targetY = this.targetIon.y;
+            
+            this.x += (targetX - this.x) * 0.15 * speedMultiplier;
+            this.y += (targetY - this.y) * 0.15 * speedMultiplier;
+
+            const dist = Math.hypot(this.x - targetX, this.y - targetY);
+            if (dist < 3) {
+                totalElectronsMoved++; // 은 이온에 도착할 때마다 전자 개수 누적
+                this.targetIon.completeReaction();
+                return false; // 도착 시 제거 신호
+            }
+            return true; // 계속 이동
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 9, 0, Math.PI * 2);
+            ctx.fillStyle = '#facc15';
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('-', this.x, this.y + 1);
+        }
+    }
+
+    class Ion {
+        constructor(x, y, type) {
+            this.x = x;
+            this.y = y;
+            this.type = type;
+            this.radius = ION_RADII[type] || 24;
+            
+            // 이온 종류별 실제 이동도 가져오기
+            let mobility = MOBILITY_RATES[type] || 1.0;
+            
+            // 이동도(Mobility)를 반영하여 방향과 초기 속도 설정
+            let angle = Math.random() * Math.PI * 2;
+            let baseSpeed = (Math.random() * 0.5 + 0.5) * mobility;
+            
+            this.vx = Math.cos(angle) * baseSpeed;
+            this.vy = Math.sin(angle) * baseSpeed;
+            
+            this.isPrecipitated = false;
+            this.isWaitingAtSurface = false;
+            this.isReacting = false; // 전자를 기다리며 반응 중인 상태
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            
+            if (this.type === ION_TYPES.AG) {
+                ctx.fillStyle = '#f8fafc';
+                ctx.fill();
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                ctx.fillStyle = '#334155';
+                drawChemSymbol(ctx, this.x, this.y, this.type);
+            } else if (this.type === ION_TYPES.CU2) {
+                // 구리 이온(Cu2+)이 진한 배경에서도 잘 보이도록 불투명한 흰 바탕과 매우 진한 파랑색 글자 적용
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+                ctx.strokeStyle = '#1e40af';
+                ctx.lineWidth = 2.0;
+                ctx.stroke();
+                ctx.fillStyle = '#000080'; // Navy 색상으로 가독성 강화
+                drawChemSymbol(ctx, this.x, this.y, this.type);
+            } else {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.fill();
+                ctx.fillStyle = '#64748b';
+                drawChemSymbol(ctx, this.x, this.y, this.type);
+            }
+        }
+
+        update() {
+            if (this.isPrecipitated || this.isWaitingAtSurface) return;
+
+            // 속도 조절 슬라이더 배율 적용
+            this.x += this.vx * speedMultiplier;
+            this.y += this.vy * speedMultiplier;
+
+            // 은 이온이 구리 표면에 닿았을 때 (대기 상태로 전환)
+            if (this.type === ION_TYPES.AG && this.x <= SURFACE_X + this.radius + 2) {
+                this.x = SURFACE_X + this.radius;
+                this.isWaitingAtSurface = true;
+                this.vx = 0;
+                this.vy = 0;
+                return;
+            }
+
+            // 일반 이온들의 구리 막대 표면 바운스 처리 (Cu2+가 자연스럽게 떠다니도록)
+            if (this.x <= SURFACE_X + this.radius) {
+                this.x = SURFACE_X + this.radius;
+                this.vx *= -1;
+            } else if (this.x >= canvas.width - this.radius) {
+                this.x = canvas.width - this.radius;
+                this.vx *= -1;
+            }
+
+            // 천장 및 바닥 바운스
+            if (this.y <= this.radius) {
+                this.y = this.radius;
+                this.vy *= -1;
+            } else if (this.y >= canvas.height - this.radius) {
+                this.y = canvas.height - this.radius;
+                this.vy *= -1;
+            }
+        }
+
+        completeReaction() {
+            this.isPrecipitated = true;
+            this.isWaitingAtSurface = false;
+            this.type = 'Ag'; // 윗첨자(+)가 없는 Ag 원자로 변경
+            this.radius = ION_RADII['Ag']; // 은 원자의 크기로 변경
+            precipitatedAg.push({x: this.x, y: this.y, radius: this.radius});
+            ions = ions.filter(i => i !== this);
+            updateStats();
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('agCount').innerText = `${precipitatedAg.length} / ${initialAgCount} 개`;
+        document.getElementById('cu2Count').innerText = `${cuIonizedCount} / ${maxCuIon} 개`;
+        document.getElementById('eCount').innerText = `${totalElectronsMoved} 개`;
+    }
+
+    function init() {
+        ions = [];
+        electrons = [];
+        precipitatedAg = [];
+        cuIonizedCount = 0;
+        totalElectronsMoved = 0; // 실험 초기화 시 누적 전자 수도 0으로 리셋
+        isRunning = false;
+        
+        // 슬라이더 값 반영
+        initialAgCount = parseInt(ionCountSlider.value);
+        maxCuIon = initialAgCount / 2;
+        speedMultiplier = parseFloat(speedSlider.value);
+        
+        // 1. 이온들을 골고루 퍼트리기 위한 그리드(Grid) + 랜덤 오프셋 계산
+        let totalIons = initialAgCount * 2; // Ag+와 NO3- 합친 개수
+        const spawnAreaX = 160; // 구리 막대 우측 수용액 영역
+        const spawnAreaY = 40;
+        const spawnWidth = canvas.width - spawnAreaX - 40;
+        const spawnHeight = canvas.height - spawnAreaY - 40;
+        
+        // 영역을 행/열 칸으로 분할
+        let cols = Math.ceil(Math.sqrt(totalIons * (spawnWidth / spawnHeight)));
+        let rows = Math.ceil(totalIons / cols);
+        
+        let cellWidth = spawnWidth / cols;
+        let cellHeight = spawnHeight / rows;
+
+        // Ag+와 NO3- 배열을 만들고 무작위로 섞음
+        let ionTypesList = [];
+        for (let i = 0; i < initialAgCount; i++) {
+            ionTypesList.push(ION_TYPES.AG);
+            ionTypesList.push(ION_TYPES.NO3);
+        }
+        ionTypesList.sort(() => Math.random() - 0.5);
+
+        // 그리드 기반으로 이온 배치 (각 셀 안에서 랜덤하게 위치 조정)
+        let idx = 0;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (idx >= totalIons) break;
+                
+                let baseX = spawnAreaX + c * cellWidth;
+                let baseY = spawnAreaY + r * cellHeight;
+                
+                // 너무 벽에 붙지 않도록 셀 내부에 마진(여백) 추가
+                let marginX = cellWidth * 0.15;
+                let marginY = cellHeight * 0.15;
+                
+                let x = baseX + marginX + Math.random() * (cellWidth - marginX * 2);
+                let y = baseY + marginY + Math.random() * (cellHeight - marginY * 2);
+                
+                ions.push(new Ion(x, y, ionTypesList[idx]));
+                idx++;
+            }
+        }
+
+        updateStats();
+        draw();
+    }
+
+    // 슬라이더 이벤트 리스너 추가
+    speedSlider.addEventListener('input', (e) => {
+        speedValue.innerText = parseFloat(e.target.value).toFixed(1);
+        speedMultiplier = parseFloat(e.target.value);
+    });
+
+    ionCountSlider.addEventListener('input', (e) => {
+        ionCountValue.innerText = e.target.value;
+        // 개수를 변경하면 즉시 실험을 새 개수에 맞춰 초기화합니다.
+        init();
+        startBtn.disabled = false;
+    });
+
+    function draw() {
+        // 수용액 색상 변화 (구리 이온 농도 비례) - 갈수록 진한 푸른색으로 동적 계산
+        const ratio = maxCuIon > 0 ? (cuIonizedCount / maxCuIon) : 0;
+        const r = Math.floor(255 - ratio * 210); // 백색(255)에서 진한 파랑(45)으로
+        const g = Math.floor(255 - ratio * 120); // 백색(255)에서 파랑(135)으로
+        const b = 255; // 파란색 채도 유지
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 수용액의 색 표시 박스 실시간 업데이트
+        document.getElementById('solColorBox').style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+
+        // 구리 금속
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(20, 20, 85, 460); // 넓이 85이므로 x는 20~105까지
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(20, 20, 85, 460);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 22px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Cu', 62, 250); // "금속" 텍스트 삭제
+
+        if (isRunning) {
+            // 2:1 동시 반응 로직 (Ag+ 2개와 Cu 1개가 동시에 반응)
+            let waitingAg = ions.filter(i => i.type === ION_TYPES.AG && i.isWaitingAtSurface && !i.isReacting);
+            
+            while (waitingAg.length >= 2 && cuIonizedCount < maxCuIon) {
+                // 대기 중인 은 이온 2개 선택
+                let ag1 = waitingAg.pop();
+                let ag2 = waitingAg.pop();
+                ag1.isReacting = true;
+                ag2.isReacting = true;
+
+                let midY = (ag1.y + ag2.y) / 2;
+
+                // 1. Cu2+ 이온을 동시에 수용액 속으로 자연스럽게 생성 및 방출 (이동도 반영)
+                cuIonizedCount++;
+                let cu = new Ion(SURFACE_X + ION_RADII['Cu2+'] + 5, midY, ION_TYPES.CU2);
+                let cuMobility = MOBILITY_RATES['Cu2+'];
+                cu.vx = (Math.random() * 0.8 + 0.4) * cuMobility; // 수용액 방향(오른쪽)으로 부드럽게 방출
+                cu.vy = (Math.random() - 0.5) * 2.0 * cuMobility; // 자연스러운 수직 이동 추가
+                ions.push(cu);
+
+                // 2. 금속 내부에서 2개의 전자가 발생하여 각각의 은 이온을 향해 미끄러짐
+                electrons.push(new Electron(60, midY, ag1));
+                electrons.push(new Electron(60, midY, ag2));
+
+                updateStats();
+            }
+        }
+
+        // 전자 이동 및 그리기 (도착 시 필터링으로 제거됨)
+        if (isRunning) {
+            electrons = electrons.filter(e => e.update());
+            updateStats();
+        }
+        electrons.forEach(e => e.draw());
+
+        // 석출된 고체 은(Ag) 그리기
+        precipitatedAg.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#475569';
+            ctx.fill();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            drawChemSymbol(ctx, p.x, p.y, 'Ag');
+        });
+
+        // 일반 이온들 업데이트 및 그리기
+        ions.forEach(ion => {
+            if (isRunning) ion.update();
+            ion.draw();
+        });
+
+        if (isRunning) requestAnimationFrame(draw);
+    }
+
+    startBtn.addEventListener('click', () => {
+        if (!isRunning) {
+            isRunning = true;
+            draw();
+            startBtn.disabled = true;
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        init();
+        startBtn.disabled = false;
+    });
+
+    init();
+</script>
+
+</body>
+</html>
