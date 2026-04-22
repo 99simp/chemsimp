@@ -1,1 +1,640 @@
-11
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>볼타 전지 시뮬레이션</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        /* 메인 제목 */
+        h2 {
+            color: #2c3e50;
+            margin: 0 0 15px 0;
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        /* 상단 컨트롤 패널 */
+        #top-panel {
+            width: 750px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+            z-index: 50;
+        }
+        #sliders {
+            display: flex;
+            gap: 25px;
+            align-items: center;
+            flex-grow: 1;
+        }
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+        .slider-group input {
+            width: 75px; 
+            cursor: pointer;
+            margin: 0;
+        }
+        .slider-group span {
+            width: 38px;
+            text-align: left;
+            color: #2980b9;
+        }
+        
+        /* 버튼 패널 */
+        #button-panel {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        #button-panel button {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+        #button-panel button:active { transform: scale(0.95); }
+        #start-btn { background-color: #27ae60; }
+        #start-btn:hover { background-color: #2ecc71; }
+        #pause-btn { background-color: #f39c12; }
+        #pause-btn:hover { background-color: #f1c40f; }
+        #reset-btn { background-color: #e74c3c; }
+        #reset-btn:hover { background-color: #c0392b; }
+
+        /* 메인 시뮬레이션 컨테이너 */
+        #container {
+            position: relative;
+            width: 750px;
+            height: 480px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        /* 수용액 */
+        #solution {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 250px;
+            background: rgba(52, 152, 219, 0.12);
+            border-top: 4px dashed #3498db;
+            z-index: 1;
+        }
+        
+        /* SVG 전선 */
+        #wire-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .wire-path {
+            fill: none;
+            stroke: #2c3e50;
+            stroke-width: 8;
+            stroke-linecap: round;
+        }
+        
+        /* 꼬마 전구 */
+        #bulb-wrapper {
+            position: absolute;
+            top: 10px; 
+            left: 316px; 
+            width: 45px; 
+            height: 68px; 
+            z-index: 20;
+        }
+        .glass { fill: rgba(240, 248, 255, 0.4); stroke: #bdc3c7; stroke-width: 2; transition: all 0.3s ease; }
+        .filament { stroke: #555; stroke-width: 2; fill: none; transition: all 0.3s ease; }
+        .bulb-on .glass { fill: rgba(255, 240, 150, 0.6); filter: drop-shadow(0 0 15px #f1c40f); }
+        .bulb-on .filament { stroke: #fff; filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 8px #f1c40f); }
+
+        /* 금속판 */
+        .plate {
+            position: absolute;
+            top: 150px;
+            height: 280px;
+            width: 68px; 
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            padding-top: 25px;
+            border-radius: 5px;
+            z-index: 15;
+            box-sizing: border-box;
+        }
+        #zn-plate { left: 110px; background-color: transparent; } 
+        #cu-plate { left: 500px; background: #d35400; } 
+        
+        /* 극성 표시: 전선과 닿지 않게 좌/우로 넉넉히 이동 */
+        .polarity-label {
+            position: absolute;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            z-index: 20;
+        }
+        #zn-polarity { left: 100px; top: 115px; }
+        #cu-polarity { left: 550px; top: 115px; }
+
+        /* 입자들: 실제 이온 크기 비율 반영 */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            z-index: 10;
+        }
+        /* 전자 */
+        .electron { 
+            width: 16px; height: 16px; background: #f1c40f; color: black; font-size: 9px;
+            box-shadow: 0 0 5px orange; z-index: 20;
+            offset-rotate: 0deg;
+        }
+        /* 아주 작은 H+ */
+        .h-ion { width: 20px; height: 20px; background: #3498db; color: white; border: 2px solid #2980b9; font-size: 9px; z-index: 10;}
+        /* 중간 크기 Zn2+ (수소 기체와 명확히 구분되는 은회색) */
+        .zn-ion { width: 32px; height: 32px; background: #bdc3c7; color: #333; border: 2px solid #7f8c8d; font-size: 10px; z-index: 10;}
+        /* 가장 큰 다원자 이온 SO4 2- */
+        .so4-ion { width: 46px; height: 46px; background: #9b59b6; color: white; border: 2px solid #8e44ad; font-size: 11px; z-index: 6;}
+        /* H2 기체 방울 */
+        .bubble { 
+            width: 24px; height: 24px; background: rgba(255,255,255,0.85); 
+            border: 1.5px solid #bdc3c7; font-size: 10px; color: #555; 
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.1); z-index: 20;
+        }
+
+        /* 우측 상단 범례 */
+        #legend {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 12px;
+            font-weight: bold;
+            color: #444;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border: 1px solid #eee;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .dot { border-radius: 50%; }
+
+        /* 하단 실시간 카운터 패널 */
+        #counter-panel {
+            width: 750px;
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .counter-box {
+            flex: 1;
+            background: white;
+            padding: 12px 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            text-align: center;
+            font-weight: bold;
+            font-size: 13.5px;
+            color: #34495e;
+            border-bottom: 3px solid #bdc3c7;
+        }
+        .counter-box span {
+            display: block;
+            font-size: 22px;
+            color: #e74c3c;
+            margin-top: 5px;
+        }
+        .counter-box:nth-child(1) { border-color: #3498db; }
+        .counter-box:nth-child(2) { border-color: #9b59b6; }
+        .counter-box:nth-child(3) { border-color: #95a5a6; }
+        .counter-box:nth-child(4) { border-color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+<!-- 메인 제목 -->
+<h2>볼타 전지 시뮬레이션</h2>
+
+<!-- 상단 컨트롤 패널 -->
+<div id="top-panel">
+    <div id="sliders">
+        <div class="slider-group">
+            <label>황산 용액 농도:</label>
+            <input type="range" id="concentration-slider" min="1" max="10" value="5">
+            <span id="concentration-display">Lv.5</span>
+        </div>
+        <div class="slider-group">
+            <label>반응 속도:</label>
+            <input type="range" id="speed-slider" min="0.5" max="3.0" step="0.1" value="1.0">
+            <span id="speed-display">1.0x</span>
+        </div>
+    </div>
+    <div id="button-panel">
+        <button id="start-btn">시작 ▶</button>
+        <button id="pause-btn">멈춤 ⏸</button>
+        <button id="reset-btn">초기화 ↺</button>
+    </div>
+</div>
+
+<!-- 메인 애니메이션 컨테이너 -->
+<div id="container">
+    <svg id="wire-svg">
+        <path class="wire-path" d="M 144 150 C 144 40, 534 40, 534 150" />
+    </svg>
+    
+    <div id="bulb-wrapper">
+        <svg id="incandescent-bulb" viewBox="0 0 100 150">
+            <rect x="35" y="110" width="30" height="20" rx="2" fill="#7f8c8d"/>
+            <path d="M35,114 L65,116 M35,119 L65,121 M35,124 L65,126" stroke="#2c3e50" stroke-width="2"/>
+            <path d="M40,130 L60,130 L55,140 L45,140 Z" fill="#34495e"/>
+            <path d="M45,110 L45,65 M55,110 L55,65" stroke="#7f8c8d" stroke-width="2"/>
+            <path class="filament" d="M45,65 L40,50 L50,60 L60,50 L55,65" />
+            <path class="glass" d="M50,5 C20,5 10,40 15,70 C20,95 35,100 35,110 L65,110 C65,100 80,95 85,70 C90,40 80,5 50,5 Z" />
+        </svg>
+    </div>
+
+    <!-- 극성 라벨 (전선 밖으로 이동) -->
+    <div id="zn-polarity" class="polarity-label">(-)</div>
+    <div id="cu-polarity" class="polarity-label">(+)</div>
+
+    <div id="solution"></div>
+    <div id="zn-plate" class="plate">Zn</div>
+    <div id="cu-plate" class="plate">Cu</div>
+
+    <!-- 범례: 이온 크기 및 색상 반영 -->
+    <div id="legend">
+        <div class="legend-item"><div class="dot" style="width: 12px; height: 12px; background: #3498db; border: 2px solid #2980b9;"></div>H⁺ (수소 이온)</div>
+        <div class="legend-item"><div class="dot" style="width: 20px; height: 20px; background: #bdc3c7; border: 2px solid #7f8c8d;"></div>Zn²⁺ (아연 이온)</div>
+        <div class="legend-item"><div class="dot" style="width: 26px; height: 26px; background: #9b59b6; border: 2px solid #8e44ad;"></div>SO₄²⁻ (황산 이온)</div>
+        <div class="legend-item"><div class="dot" style="width: 10px; height: 10px; background: #f1c40f; box-shadow: 0 0 4px orange;"></div>e⁻ (전자)</div>
+        <div class="legend-item"><div class="dot" style="width: 16px; height: 16px; background: rgba(255,255,255,0.85); border: 2px solid #bdc3c7;"></div>H₂ (수소 기체)</div>
+    </div>
+</div>
+
+<!-- 하단 실시간 카운터 패널 -->
+<div id="counter-panel">
+    <div class="counter-box">수용액 속 H⁺ 수 <span id="count-h">0</span></div>
+    <div class="counter-box">수용액 속 SO₄²⁻ 수 <span id="count-so4">0</span></div>
+    <div class="counter-box">수용액 속 Zn²⁺ 수 <span id="count-zn">0</span></div>
+    <div class="counter-box">발생한 H₂ 기체 <span id="count-h2">0</span></div>
+</div>
+
+<script>
+    const container = document.getElementById('container');
+    const bulbWrapper = document.getElementById('bulb-wrapper');
+    const znPlate = document.getElementById('zn-plate');
+    
+    // 버튼 및 슬라이더
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const concSlider = document.getElementById('concentration-slider');
+    const speedSlider = document.getElementById('speed-slider');
+    const concDisplay = document.getElementById('concentration-display');
+    const speedDisplay = document.getElementById('speed-display');
+
+    // 카운터 요소들
+    const uiCountH = document.getElementById('count-h');
+    const uiCountSO4 = document.getElementById('count-so4');
+    const uiCountZn = document.getElementById('count-zn');
+    const uiCountH2 = document.getElementById('count-h2');
+    
+    let znCount = 0; 
+    let reactionInterval;
+    let baseInterval = 2000; 
+
+    // 상태 관리 변수
+    let isRunning = false;
+    let currentH = 0;
+    let currentSO4 = 0;
+    let currentZn = 0;
+    let currentH2 = 0;
+
+    // 애니메이션 지속 시간 변수
+    let wanderDuration = 3500;
+    let ionMoveDuration = 5500;
+    let bubbleDuration = 3000;
+
+    function updateCounters() {
+        uiCountH.innerText = currentH;
+        uiCountSO4.innerText = currentSO4;
+        uiCountZn.innerText = currentZn;
+        uiCountH2.innerText = currentH2;
+    }
+
+    // 아연판 부식 (너비가 68px)
+    function updateZnSurface(cycle) {
+        let points = ["0,0", "68,0"]; 
+        for (let y = 10; y <= 280; y += 10) {
+            let x = 68; 
+            if (y > 90) {
+                const maxErosion = Math.min(cycle * 2.5, 30); 
+                const erosion = Math.random() * maxErosion;
+                x = 68 - erosion; 
+            }
+            points.push(`${x},${y}`);
+        }
+        points.push("0,280"); 
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 280"><polygon points="${points.join(' ')}" fill="%2395a5a6" rx="5"/></svg>`;
+        znPlate.style.backgroundImage = `url('data:image/svg+xml;utf8,${svg}')`;
+    }
+
+    function makeWander(ion, minX, maxX, minY, maxY) {
+        if(ion.dataset.isReacting === 'true') return;
+        
+        const currentLeft = parseFloat(ion.style.left);
+        const currentTop = parseFloat(ion.style.top);
+        let nextLeft = currentLeft + (Math.random() - 0.5) * 150;
+        let nextTop = currentTop + (Math.random() - 0.5) * 100;
+
+        nextLeft = Math.max(minX, Math.min(maxX, nextLeft));
+        nextTop = Math.max(minY, Math.min(maxY, nextTop));
+
+        const speedMultiplier = parseFloat(speedSlider.value);
+        const duration = (wanderDuration + Math.random() * 2000) / speedMultiplier;
+
+        const anim = ion.animate([
+            { left: currentLeft + 'px', top: currentTop + 'px' },
+            { left: nextLeft + 'px', top: nextTop + 'px' }
+        ], { duration: duration, easing: 'ease-in-out', fill: 'forwards' });
+
+        anim.onfinish = () => {
+            if(ion.dataset.isReacting !== 'true') {
+                ion.style.left = nextLeft + 'px';
+                ion.style.top = nextTop + 'px';
+                makeWander(ion, minX, maxX, minY, maxY);
+            }
+        };
+    }
+
+    function createIon(className, text, initialX, initialY, wanderRegion) {
+        const ion = document.createElement('div');
+        ion.className = `particle ${className}`;
+        ion.innerText = text;
+        ion.style.left = initialX + 'px';
+        ion.style.top = initialY + 'px';
+        container.appendChild(ion);
+
+        if(wanderRegion) {
+            makeWander(ion, wanderRegion[0], wanderRegion[1], wanderRegion[2], wanderRegion[3]);
+        }
+        return ion;
+    }
+
+    function initSolution() {
+        document.querySelectorAll('.particle').forEach(p => p.remove());
+
+        const concLevel = parseInt(concSlider.value);
+        currentSO4 = concLevel * 2; 
+        currentH = currentSO4 * 2;   
+        currentZn = 0;
+        currentH2 = 0;
+        
+        updateCounters();
+
+        for(let i=0; i<currentSO4; i++) {
+            createIon('so4-ion', 'SO₄²⁻', Math.random() * 690 + 20, Math.random() * 170 + 270, [20, 710, 270, 440]);
+        }
+        for(let i=0; i<currentH; i++) {
+            createIon('h-ion', 'H⁺', Math.random() * 690 + 20, Math.random() * 170 + 270, [20, 710, 270, 440]);
+        }
+    }
+
+    function runReactionCycle() {
+        if (!isRunning) return;
+
+        const hIons = Array.from(document.querySelectorAll('.h-ion'))
+                           .filter(ion => ion.dataset.isReacting !== 'true');
+        
+        // 수소 이온이 2개 미만이면 배터리 방전 -> 정지
+        if(hIons.length < 2) {
+            clearInterval(reactionInterval); 
+            bulbWrapper.classList.remove('bulb-on'); // 전구 꺼짐
+            isRunning = false;
+            return; 
+        }
+
+        znCount++; 
+        currentZn++;
+        updateCounters(); 
+
+        const speedMultiplier = parseFloat(speedSlider.value);
+        const actualMoveDuration = ionMoveDuration / speedMultiplier;
+
+        updateZnSurface(znCount);
+        
+        // 아연판 표면 부식 위치 계산 (110 + 68 = 178)
+        const znSurfaceX = 178; 
+        const znSurfaceY = 280 + Math.random() * 120; 
+
+        // Zn 이온 수용액으로 확산
+        const targetX = 190 + (znCount % 7) * 45; 
+        const targetY = 280 + Math.floor(znCount / 7) * 45;
+        const znIon = document.createElement('div');
+        znIon.className = 'particle zn-ion';
+        znIon.innerText = 'Zn²⁺';
+        znIon.style.left = znSurfaceX + 'px'; 
+        znIon.style.top = znSurfaceY + 'px';
+        container.appendChild(znIon);
+
+        const znAnim = znIon.animate([
+            { left: znSurfaceX + 'px', top: znSurfaceY + 'px', opacity: 0.5 },
+            { left: targetX + 'px', top: targetY + 'px', opacity: 1 }
+        ], { duration: 3000 / speedMultiplier, easing: 'ease-out', fill: 'forwards' });
+        
+        if (!isRunning) znAnim.pause();
+
+        znAnim.onfinish = () => {
+            znIon.style.left = targetX + 'px';
+            znIon.style.top = targetY + 'px';
+            makeWander(znIon, targetX - 15, targetX + 15, targetY - 15, targetY + 15);
+        };
+
+        const cuSurfaceY = 280 + Math.random() * 150; 
+        hIons.sort((a, b) => parseFloat(b.style.left) - parseFloat(a.style.left));
+
+        for(let i=0; i<2; i++) {
+            setTimeout(() => {
+                
+                // ★ 동적 전자 경로: 표면(znSurfaceY) -> 아연중심(144) -> 구리중심(534) -> 구리표면(500)
+                const dynamicPath = `path("M ${znSurfaceX} ${znSurfaceY} L 144 150 C 144 40, 534 40, 534 150 L 500 ${cuSurfaceY}")`;
+                const electron = document.createElement('div');
+                electron.className = 'particle electron';
+                electron.innerText = 'e⁻';
+                electron.style.offsetPath = dynamicPath;
+                container.appendChild(electron);
+
+                const eAnim = electron.animate([
+                    { offsetDistance: '0%' },
+                    { offsetDistance: '100%' }
+                ], { duration: actualMoveDuration, easing: 'linear' });
+                
+                if (!isRunning) eAnim.pause();
+                eAnim.onfinish = () => electron.remove();
+
+                const hIon = hIons[i];
+                hIon.dataset.isReacting = 'true'; 
+                
+                const startLeft = hIon.style.left;
+                const startTop = hIon.style.top;
+                
+                const hAnim = hIon.animate([
+                    { left: startLeft, top: startTop, zIndex: 6 }, 
+                    { left: '480px', top: cuSurfaceY + 'px', zIndex: 20 } 
+                ], { duration: actualMoveDuration, easing: 'ease-in-out', fill: 'forwards' });
+
+                if (!isRunning) hAnim.pause();
+
+                hAnim.onfinish = () => {
+                    hIon.remove();
+                    currentH--;
+                    updateCounters();
+
+                    if(i === 1) {
+                        generateHydrogenBubble(cuSurfaceY); 
+                        currentH2++;
+                        updateCounters();
+                    }
+                };
+
+            }, (i * 600) / speedMultiplier); 
+        }
+    }
+
+    function generateHydrogenBubble(surfaceY) {
+        const bubble = document.createElement('div');
+        bubble.className = 'particle bubble';
+        bubble.innerText = 'H₂';
+        
+        bubble.style.left = '480px'; 
+        bubble.style.top = surfaceY + 'px';
+        container.appendChild(bubble);
+
+        const speedMultiplier = parseFloat(speedSlider.value);
+        const bAnim = bubble.animate([
+            { transform: 'translate(0, 0) scale(0)', opacity: 1, offset: 0 },
+            { transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0.05 }, 
+            { transform: 'translate(2px, -3px) scale(1.1)', opacity: 1, offset: 0.2 }, 
+            { transform: 'translate(-1px, -5px) scale(1)', opacity: 1, offset: 0.6 }, 
+            { transform: 'translate(10px, -220px) scale(1.3)', opacity: 0, offset: 1 } 
+        ], { duration: bubbleDuration * 2.67 / speedMultiplier, fill: 'forwards' });
+
+        if (!isRunning) bAnim.pause();
+        bAnim.onfinish = () => bubble.remove();
+    }
+
+    function updateInterval() {
+        if(reactionInterval) clearInterval(reactionInterval);
+        if(isRunning) {
+            const speedMultiplier = parseFloat(speedSlider.value);
+            reactionInterval = setInterval(runReactionCycle, baseInterval / speedMultiplier);
+        }
+    }
+
+    // 재생 상태 전환 함수 (전구 제어 포함)
+    function setPlayState(play) {
+        isRunning = play;
+
+        if (isRunning) {
+            document.getAnimations().forEach(anim => anim.play());
+            updateInterval();
+            
+            // 배터리가 남아있다면 불을 켬
+            const hIons = document.querySelectorAll('.h-ion');
+            if(hIons.length >= 2) bulbWrapper.classList.add('bulb-on');
+        } else {
+            document.getAnimations().forEach(anim => anim.pause());
+            clearInterval(reactionInterval);
+            bulbWrapper.classList.remove('bulb-on'); // 불을 끔
+        }
+    }
+
+    function resetSimulation() {
+        znCount = 0;
+        updateZnSurface(0); 
+        bulbWrapper.classList.remove('bulb-on');
+        initSolution(); 
+        setPlayState(false); 
+    }
+
+    // 이벤트 리스너 연결
+    concSlider.addEventListener('input', () => {
+        concDisplay.innerText = 'Lv.' + concSlider.value;
+        initSolution(); 
+        if(!isRunning) setPlayState(false); 
+    });
+    
+    speedSlider.addEventListener('input', () => {
+        speedDisplay.innerText = speedSlider.value + 'x';
+        updateInterval();
+        
+        if(isRunning) {
+            document.getAnimations().forEach(anim => {
+                anim.playbackRate = parseFloat(speedSlider.value);
+            });
+        }
+    });
+
+    startBtn.addEventListener('click', () => {
+        if (!isRunning) {
+            setPlayState(true);
+            if (znCount === 0) runReactionCycle(); // 시작 버튼 누르면 즉시 첫 반응 시작
+        }
+    });
+    
+    pauseBtn.addEventListener('click', () => setPlayState(false));
+    resetBtn.addEventListener('click', resetSimulation);
+
+    // 최초 실행 시 대기 상태로 초기화
+    initSolution();
+    updateZnSurface(0); 
+    setPlayState(false); 
+</script>
+
+</body>
+</html>
