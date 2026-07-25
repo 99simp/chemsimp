@@ -226,13 +226,13 @@
 <body>
 
 <header>
-  <div class="eyebrow">고2 화학 · 반응 속도와 평형 · 실습 시뮬레이션</div>
+  <div class="eyebrow">반응 속도와 평형 · 실습 시뮬레이션</div>
   <h1>암모니아 합성 반응의 화학 평형 이동</h1>
   <div class="header-sub">농도, 온도, 촉매 조건을 바꿔가며 정반응·역반응 속도와 평형 이동을 실시간 그래프로 관찰합니다.</div>
 
   <div class="header-grid">
     <div class="equation-card">
-      <div class="equation">N<sub>2</sub>(g) + 3H<sub>2</sub>(g) <span class="arrow">⇌</span> 2NH<sub>3</sub>(g)</div>
+      <div class="equation">N<sub>2</sub>(<i>g</i>) + 3H<sub>2</sub>(<i>g</i>) <span class="arrow">⇌</span> 2NH<sub>3</sub>(<i>g</i>)</div>
       <div class="dh">ΔH = −92 kJ/mol &nbsp;(발열 반응)</div>
     </div>
 
@@ -294,6 +294,19 @@
     </div>
 
     <div class="panel">
+      <h2>농도 조건 변화(실행중)</h2>
+      <div class="hint" style="margin-top:0;margin-bottom:8px;">버튼을 누르면 그 물질의 농도가 0.4 mol/L 만큼 즉시 증가하거나 감소합니다 (0 미만으로는 내려가지 않습니다).</div>
+      <div class="perturb-grid">
+        <button data-species="N2" data-delta="0.4" class="perturb-btn" disabled>N₂ 증가</button>
+        <button data-species="H2" data-delta="0.4" class="perturb-btn" disabled>H₂ 증가</button>
+        <button data-species="NH3" data-delta="0.4" class="perturb-btn" disabled>NH₃ 증가</button>
+        <button data-species="N2" data-delta="-0.4" class="perturb-btn" disabled>N₂ 감소</button>
+        <button data-species="H2" data-delta="-0.4" class="perturb-btn" disabled>H₂ 감소</button>
+        <button data-species="NH3" data-delta="-0.4" class="perturb-btn" disabled>NH₃ 감소</button>
+      </div>
+    </div>
+
+    <div class="panel">
       <h2>촉매 조건</h2>
       <div class="radio-group" id="catalystGroup">
         <label class="radio-opt active">
@@ -310,16 +323,6 @@
         </label>
       </div>
       <div class="hint">촉매는 정반응·역반응 속도를 같은 비율로 바꿀 뿐, <b>평형의 위치(K)는 바꾸지 않습니다.</b></div>
-    </div>
-
-    <div class="panel">
-      <h2>조건 변화 주기 (실행 중)</h2>
-      <div class="hint" style="margin-top:0;margin-bottom:8px;">버튼을 누르면 그 물질의 농도가 +0.4 mol/L 만큼 즉시 추가됩니다.</div>
-      <div class="perturb-grid">
-        <button data-species="N2" class="perturb-btn" disabled>N₂ 추가</button>
-        <button data-species="H2" class="perturb-btn" disabled>H₂ 추가</button>
-        <button data-species="NH3" class="perturb-btn" disabled>NH₃ 추가</button>
-      </div>
     </div>
   </div>
 
@@ -382,7 +385,7 @@
    촉매는 kf, kr에 동일한 배율을 곱함 -> Kc 불변, 평형 도달 속도만 변화
    ======================================================================== */
 
-const KF0 = 0.02, KR0 = 0.01;   // 500K 기준 속도상수
+const KF0 = 0.1, KR0 = 0.05;    // 500K 기준 속도상수 (수업 시연에 적합하도록 반응 속도를 높게 설정)
 const AF = 1.0, AR = 3.0;       // 온도 민감도 (역반응이 더 민감 = 발열반응)
 
 function rateConstants(T){
@@ -463,8 +466,13 @@ document.querySelectorAll('input[name=cat]').forEach(r=>{
 perturbBtns.forEach(b=>{
   b.addEventListener('click', ()=>{
     const sp = b.dataset.species;
-    state.c[sp] += 0.4;
-    logEvent(`${sp==='N2'?'N₂':(sp==='H2'?'H₂':'NH₃')} 농도 +0.40 mol/L 추가 → 반응이 재조정됩니다.`);
+    const delta = Number(b.dataset.delta);
+    const before = state.c[sp];
+    state.c[sp] = Math.max(0, state.c[sp] + delta);
+    const applied = state.c[sp]-before;
+    const name = sp==='N2'?'N₂':(sp==='H2'?'H₂':'NH₃');
+    const dir = applied>=0 ? `+${fmt(applied,2)}` : fmt(applied,2);
+    logEvent(`${name} 농도 ${dir} mol/L 변화 → 반응이 재조정됩니다.`);
     resetEquilibriumStreak();
   });
 });
