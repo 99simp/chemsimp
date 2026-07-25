@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>암모니아 합성 화학 평형 시뮬레이션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#EEF1EF;
+    --panel:#FFFFFF;
+    --ink:#152229;
+    --ink-soft:#516067;
+    --line:#DAE1DE;
+    --heat:#C9752F;
+    --forward:#2E6FA6;
+    --reverse:#B5482F;
+    --balance:#2E7D6B;
+    --cat-pos:#4C8C3C;
+    --cat-neg:#8B4B6B;
+    --n2:#2E6FA6;
+    --h2:#3FA69A;
+    --nh3:#C9752F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans KR',sans-serif;
+    line-height:1.55;
+    padding-bottom:60px;
+  }
+  h1,h2,h3,.display{
+    font-family:'Space Grotesk','Noto Sans KR',sans-serif;
+    letter-spacing:-0.01em;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Header ---------- */
+  header{
+    background:linear-gradient(180deg,#132029 0%, #16232C 100%);
+    color:#F3F5F3;
+    padding:28px 32px 34px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:#9FB2A8;
+    margin-bottom:8px;
+  }
+  header h1{
+    font-size:clamp(24px,3.4vw,34px);
+    margin:0 0 4px;
+    font-weight:700;
+  }
+  .header-sub{color:#B9C4C0;font-size:14.5px;max-width:640px;}
+  .header-grid{
+    display:flex;flex-wrap:wrap;gap:28px;align-items:center;
+    margin-top:22px;
+  }
+  .equation-card{
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;
+    padding:16px 22px;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .equation{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:clamp(18px,2.4vw,24px);
+    color:#EDEFE9;
+  }
+  .equation sub{font-size:0.6em;}
+  .equation .arrow{color:var(--balance);margin:0 10px;font-weight:600;}
+  .dh{font-size:13px;color:#E3A56B;font-family:'IBM Plex Mono',monospace;}
+
+  /* Signature: reaction balance gauge */
+  .beam-wrap{
+    display:flex;align-items:center;gap:16px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;
+    padding:14px 20px;
+    min-width:280px;
+  }
+  .beam-label{font-size:11px;color:#9FB2A8;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;}
+  #beamSvg{display:block;}
+  .beam-pivot{fill:#EDEFE9;}
+  .beam-bar{fill:#EDEFE9;}
+  .beam-node-left{fill:var(--forward);}
+  .beam-node-right{fill:var(--nh3);}
+  .beam-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;fill:#B9C4C0;}
+  #beamGroup{transform-origin:150px 40px;transition:transform 0.35s cubic-bezier(.4,0,.2,1);}
+  .beam-status{font-size:13px;color:#EDEFE9;font-weight:600;min-width:150px;}
+  .beam-status .tag{
+    display:inline-block;font-size:10.5px;font-family:'IBM Plex Mono',monospace;
+    padding:2px 8px;border-radius:20px;margin-right:6px;letter-spacing:.03em;
+  }
+  .tag.forward-tag{background:rgba(46,111,166,.25);color:#8FBBE0;}
+  .tag.reverse-tag{background:rgba(181,72,47,.25);color:#E5A18B;}
+  .tag.eq-tag{background:rgba(63,166,154,.25);color:#8FE0D3;}
+
+  /* ---------- Layout ---------- */
+  .layout{
+    max-width:1360px;margin:0 auto;padding:24px 32px 0;
+    display:grid;grid-template-columns:330px 1fr;gap:22px;
+  }
+  @media (max-width:980px){ .layout{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 20px 22px;
+  }
+  .panel + .panel{margin-top:18px;}
+  .panel h2{
+    font-size:14px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-soft);font-weight:600;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel h2::before{
+    content:"";width:8px;height:8px;border-radius:50%;background:var(--balance);display:inline-block;
+  }
+
+  .controls{position:sticky;top:16px;align-self:start;}
+
+  .field{margin-bottom:16px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;font-weight:500;margin-bottom:6px;color:var(--ink);
+  }
+  .field label .val{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);}
+  input[type=range]{
+    width:100%;height:5px;border-radius:4px;appearance:none;
+    background:var(--line);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--balance);border:2px solid #fff;box-shadow:0 0 0 1px var(--balance);cursor:pointer;
+  }
+  input[type=range]:disabled{opacity:.4;cursor:not-allowed;}
+  input[type=range]:disabled::-webkit-slider-thumb{background:#9AA6A2;box-shadow:none;}
+
+  .slider-n2::-webkit-slider-thumb{background:var(--n2);box-shadow:0 0 0 1px var(--n2);}
+  .slider-h2::-webkit-slider-thumb{background:var(--h2);box-shadow:0 0 0 1px var(--h2);}
+  .slider-nh3::-webkit-slider-thumb{background:var(--nh3);box-shadow:0 0 0 1px var(--nh3);}
+  .slider-temp::-webkit-slider-thumb{background:var(--heat);box-shadow:0 0 0 1px var(--heat);}
+
+  .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
+  .hint.live{color:var(--heat);font-weight:500;}
+
+  .btn-row{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  button{
+    font-family:'Space Grotesk','Noto Sans KR',sans-serif;
+    font-size:13px;font-weight:600;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:8px;padding:9px 14px;cursor:pointer;transition:all .15s ease;
+  }
+  button:hover{border-color:var(--balance);color:var(--balance);}
+  button.primary{background:var(--balance);border-color:var(--balance);color:#fff;}
+  button.primary:hover{background:#256459;color:#fff;}
+  button.warn{border-color:var(--reverse);color:var(--reverse);}
+  button.warn:hover{background:var(--reverse);color:#fff;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button:disabled:hover{border-color:var(--line);color:var(--ink);}
+
+  .radio-group{display:flex;flex-direction:column;gap:8px;}
+  .radio-opt{
+    display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);
+    border-radius:8px;cursor:pointer;font-size:13px;transition:border-color .15s;
+  }
+  .radio-opt:hover{border-color:var(--balance);}
+  .radio-opt input{accent-color:var(--balance);}
+  .radio-opt.active{border-color:var(--balance);background:#F2F8F6;}
+  .radio-opt .swatch{width:10px;height:10px;border-radius:50%;}
+  .swatch.none{background:#B8C0BC;}
+  .swatch.pos{background:var(--cat-pos);}
+  .swatch.neg{background:var(--cat-neg);}
+
+  .perturb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .perturb-grid button{padding:8px 4px;font-size:12px;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat{
+    background:#F7F9F8;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  }
+  .stat .k{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
+  .stat .v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin-top:2px;}
+
+  .verify-banner{
+    border-radius:8px;padding:12px 14px;font-size:13px;font-weight:500;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .verify-banner.pending{background:#FBF3E9;color:#8A5A22;border:1px solid #EBD3B1;}
+  .verify-banner.ok{background:#EBF6F2;color:#1F6653;border:1px solid #BFE3D6;}
+
+  canvas{max-height:280px;}
+  .chart-wrap{position:relative;height:260px;}
+
+  .legend-row{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-top:8px;}
+  .legend-row span{display:inline-flex;align-items:center;gap:6px;}
+  .legend-row i{width:12px;height:3px;border-radius:2px;display:inline-block;}
+
+  .log-box{
+    max-height:170px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background:#F7F9F8;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  }
+  .log-box div{padding:3px 0;border-bottom:1px dashed var(--line);color:var(--ink-soft);}
+  .log-box div:last-child{border-bottom:none;}
+  .log-box div b{color:var(--ink);}
+
+  .note-box{
+    font-size:12.5px;color:var(--ink-soft);background:#F7F9F8;border:1px solid var(--line);
+    border-radius:8px;padding:12px 14px;margin-top:10px;
+  }
+  .note-box b{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">고2 화학 · 반응 속도와 평형 · 실습 시뮬레이션</div>
+  <h1>암모니아 합성 반응의 화학 평형 이동</h1>
+  <div class="header-sub">농도, 온도, 촉매 조건을 바꿔가며 정반응·역반응 속도와 평형 이동을 실시간 그래프로 관찰합니다.</div>
+
+  <div class="header-grid">
+    <div class="equation-card">
+      <div class="equation">N<sub>2</sub>(g) + 3H<sub>2</sub>(g) <span class="arrow">⇌</span> 2NH<sub>3</sub>(g)</div>
+      <div class="dh">ΔH = −92 kJ/mol &nbsp;(발열 반응)</div>
+    </div>
+
+    <div class="beam-wrap">
+      <div>
+        <div class="beam-label">Reaction Balance</div>
+        <svg id="beamSvg" width="180" height="70" viewBox="0 0 300 70">
+          <circle cx="150" cy="40" r="6" class="beam-pivot"></circle>
+          <g id="beamGroup">
+            <rect x="20" y="37" width="260" height="6" rx="3" class="beam-bar"></rect>
+            <circle id="beamLeft" cx="30" cy="40" r="13" class="beam-node-left"></circle>
+            <circle id="beamRight" cx="270" cy="40" r="13" class="beam-node-right"></circle>
+          </g>
+          <text x="30" y="65" text-anchor="middle" class="beam-tag">N₂+H₂</text>
+          <text x="270" y="65" text-anchor="middle" class="beam-tag">NH₃</text>
+        </svg>
+      </div>
+      <div class="beam-status" id="beamStatus">
+        <span class="tag" id="beamTagEl">대기 중</span><br>
+        <span id="beamStatusText">시작을 눌러 반응을 진행하세요</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ===================== LEFT: CONTROLS ===================== -->
+  <div class="controls">
+    <div class="panel">
+      <h2>초기 농도 설정</h2>
+      <div class="field">
+        <label>N₂ (질소) <span class="val mono" id="valN2">1.00 mol/L</span></label>
+        <input type="range" class="slider-n2" id="initN2" min="0" max="2" step="0.05" value="1.0">
+      </div>
+      <div class="field">
+        <label>H₂ (수소) <span class="val mono" id="valH2">1.50 mol/L</span></label>
+        <input type="range" class="slider-h2" id="initH2" min="0" max="2" step="0.05" value="1.5">
+      </div>
+      <div class="field">
+        <label>NH₃ (암모니아) <span class="val mono" id="valNH3">0.00 mol/L</span></label>
+        <input type="range" class="slider-nh3" id="initNH3" min="0" max="2" step="0.05" value="0.0">
+      </div>
+      <div class="hint">시작 전 초기 농도를 설정하세요. 시작 후에는 아래 "조건 변화 주기"로 농도를 추가할 수 있습니다.</div>
+      <div class="btn-row">
+        <button class="primary" id="btnStart">▶ 반응 시작</button>
+        <button id="btnPause" disabled>일시정지</button>
+        <button class="warn" id="btnReset">초기화</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>온도 조건</h2>
+      <div class="field">
+        <label>온도 <span class="val mono" id="valTemp">500 K</span></label>
+        <input type="range" class="slider-temp" id="tempSlider" min="300" max="800" step="10" value="500">
+      </div>
+      <div class="hint live" id="tempHint">기준 온도입니다. 슬라이더를 움직여 실시간으로 온도를 바꿔보세요.</div>
+    </div>
+
+    <div class="panel">
+      <h2>촉매 조건</h2>
+      <div class="radio-group" id="catalystGroup">
+        <label class="radio-opt active">
+          <input type="radio" name="cat" value="none" checked>
+          <span class="swatch none"></span> 촉매 없음
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="cat" value="positive">
+          <span class="swatch pos"></span> 정촉매 첨가 (반응 가속)
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="cat" value="negative">
+          <span class="swatch neg"></span> 부촉매 첨가 (반응 억제)
+        </label>
+      </div>
+      <div class="hint">촉매는 정반응·역반응 속도를 같은 비율로 바꿀 뿐, <b>평형의 위치(K)는 바꾸지 않습니다.</b></div>
+    </div>
+
+    <div class="panel">
+      <h2>조건 변화 주기 (실행 중)</h2>
+      <div class="hint" style="margin-top:0;margin-bottom:8px;">버튼을 누르면 그 물질의 농도가 +0.4 mol/L 만큼 즉시 추가됩니다.</div>
+      <div class="perturb-grid">
+        <button data-species="N2" class="perturb-btn" disabled>N₂ 추가</button>
+        <button data-species="H2" class="perturb-btn" disabled>H₂ 추가</button>
+        <button data-species="NH3" class="perturb-btn" disabled>NH₃ 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RIGHT: DATA ===================== -->
+  <div>
+    <div class="panel">
+      <h2>시간에 따른 농도 변화</h2>
+      <div class="chart-wrap"><canvas id="concChart"></canvas></div>
+      <div class="legend-row">
+        <span><i style="background:var(--n2)"></i>N₂</span>
+        <span><i style="background:var(--h2)"></i>H₂</span>
+        <span><i style="background:var(--nh3)"></i>NH₃</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>정반응·역반응 속도</h2>
+      <div class="chart-wrap"><canvas id="rateChart"></canvas></div>
+      <div class="legend-row">
+        <span><i style="background:var(--forward)"></i>정반응 속도 (r<sub>f</sub>)</span>
+        <span><i style="background:var(--reverse)"></i>역반응 속도 (r<sub>r</sub>)</span>
+      </div>
+      <div class="note-box">두 곡선이 만나 겹치는 지점부터가 <b>동적 평형(dynamic equilibrium)</b> 상태입니다 — 반응이 멈춘 것이 아니라 정반응과 역반응이 같은 속도로 계속 일어나는 상태예요.</div>
+    </div>
+
+    <div class="panel">
+      <h2>평형 상수 검증</h2>
+      <div class="stat-grid" style="margin-bottom:12px;">
+        <div class="stat"><div class="k">현재 시간</div><div class="v" id="statTime">0.0 s</div></div>
+        <div class="stat"><div class="k">현재 온도</div><div class="v" id="statTemp">500 K</div></div>
+        <div class="stat"><div class="k">실측 Kc = [NH₃]²/([N₂][H₂]³)</div><div class="v" id="statKobs">–</div></div>
+        <div class="stat"><div class="k">이론 Kc = k<sub>f</sub>/k<sub>r</sub> (현재 T)</div><div class="v" id="statKtheory">–</div></div>
+      </div>
+      <div class="verify-banner pending" id="verifyBanner">
+        반응을 시작하면 이곳에 실시간 평형 법칙 검증 결과가 표시됩니다.
+      </div>
+      <div class="note-box">이 시뮬레이션은 교육용으로 단순화된 반응 속도식(r<sub>f</sub> = k<sub>f</sub>[N₂][H₂]³, r<sub>r</sub> = k<sub>r</sub>[NH₃]²)을 사용합니다. 실제 암모니아 합성은 촉매 표면에서 일어나는 여러 단계 반응이라 속도식이 이보다 복잡하지만, 화학 반응식의 계수를 지수로 사용하는 이 단순 모형으로도 <b>평형 법칙(질량 작용의 법칙)</b>과 <b>르 샤틀리에 원리</b>는 정확히 관찰할 수 있습니다.</div>
+    </div>
+
+    <div class="panel">
+      <h2>조건 변화 기록</h2>
+      <div class="log-box" id="logBox">
+        <div>시뮬레이션을 시작하면 조건 변화 이력이 여기에 기록됩니다.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========================================================================
+   암모니아 합성 화학 평형 시뮬레이션
+   N2(g) + 3H2(g) <=> 2NH3(g)   ΔH = -92 kJ/mol (발열)
+   교육용 단순화 모형:
+     forward rate rf = kf * [N2] * [H2]^3
+     reverse rate rr = kr * [NH3]^2
+   온도에 따른 속도상수 (정규화 온도 x = (T-300)/500, 0~1):
+     kf(x) = kf0 * exp(A_f * x)
+     kr(x) = kr0 * exp(A_r * x),  A_r > A_f  --> 고온일수록 역반응이 더 크게 증가
+     => 온도가 오르면 Kc = kf/kr 감소 (발열반응이므로 고온에서 역반응 우세, 정확한 르샤틀리에 거동)
+   촉매는 kf, kr에 동일한 배율을 곱함 -> Kc 불변, 평형 도달 속도만 변화
+   ======================================================================== */
+
+const KF0 = 0.02, KR0 = 0.01;   // 500K 기준 속도상수
+const AF = 1.0, AR = 3.0;       // 온도 민감도 (역반응이 더 민감 = 발열반응)
+
+function rateConstants(T){
+  const x = (T-300)/500;
+  const kf = KF0*Math.exp(AF*x);
+  const kr = KR0*Math.exp(AR*x);
+  return {kf,kr};
+}
+function catalystFactor(mode){
+  if(mode==='positive') return 5;
+  if(mode==='negative') return 0.2;
+  return 1;
+}
+
+// ---------------- state ----------------
+let state = {
+  running:false, paused:false,
+  t:0,
+  c:{N2:1.0, H2:1.5, NH3:0.0},
+  T:500,
+  catalyst:'none',
+  eqStreak:0,
+  eqReached:false,
+  history:{t:[],N2:[],H2:[],NH3:[],rf:[],rr:[]},
+};
+let timer=null;
+const DT=0.02;             // 적분 시간 간격(s)
+const SUBSTEPS_PER_TICK=15; // 1 tick(100ms)당 substep 수 -> 1.5 sim-sec/tick
+const TICK_MS=100;
+
+// ---------------- DOM refs ----------------
+const $ = (id)=>document.getElementById(id);
+const initN2=$('initN2'), initH2=$('initH2'), initNH3=$('initNH3');
+const tempSlider=$('tempSlider');
+const btnStart=$('btnStart'), btnPause=$('btnPause'), btnReset=$('btnReset');
+const perturbBtns=document.querySelectorAll('.perturb-btn');
+
+function fmt(v,d=2){ return Number(v).toFixed(d); }
+
+function refreshInitLabels(){
+  $('valN2').textContent = fmt(initN2.value)+" mol/L";
+  $('valH2').textContent = fmt(initH2.value)+" mol/L";
+  $('valNH3').textContent = fmt(initNH3.value)+" mol/L";
+}
+[initN2,initH2,initNH3].forEach(s=>s.addEventListener('input', refreshInitLabels));
+refreshInitLabels();
+
+tempSlider.addEventListener('input', ()=>{
+  state.T = Number(tempSlider.value);
+  $('valTemp').textContent = state.T+" K";
+  $('statTemp').textContent = state.T+" K";
+  updateTempHint();
+  if(state.running){
+    logEvent(`온도를 ${state.T} K 로 변경`);
+    resetEquilibriumStreak();
+  }
+});
+function updateTempHint(){
+  const h=$('tempHint');
+  if(state.T>520){ h.textContent="온도가 높습니다 → 발열 반응이므로 역반응(흡열 방향)이 우세해져 NH₃가 줄어드는 쪽으로 평형이 이동합니다."; }
+  else if(state.T<480){ h.textContent="온도가 낮습니다 → 발열 반응인 정반응이 우세해져 NH₃가 늘어나는 쪽으로 평형이 이동합니다."; }
+  else { h.textContent="기준 온도 부근입니다. 슬라이더를 움직여 온도 변화 효과를 관찰하세요."; }
+}
+
+document.querySelectorAll('input[name=cat]').forEach(r=>{
+  r.addEventListener('change', ()=>{
+    document.querySelectorAll('.radio-opt').forEach(o=>o.classList.remove('active'));
+    r.closest('.radio-opt').classList.add('active');
+    state.catalyst = r.value;
+    if(state.running){
+      const label = r.value==='none'?'촉매 제거':(r.value==='positive'?'정촉매 첨가':'부촉매 첨가');
+      logEvent(`${label} — 반응 속도만 변화, 평형 위치(Kc)는 그대로 유지됩니다.`);
+      resetEquilibriumStreak();
+    }
+  });
+});
+
+perturbBtns.forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const sp = b.dataset.species;
+    state.c[sp] += 0.4;
+    logEvent(`${sp==='N2'?'N₂':(sp==='H2'?'H₂':'NH₃')} 농도 +0.40 mol/L 추가 → 반응이 재조정됩니다.`);
+    resetEquilibriumStreak();
+  });
+});
+
+function resetEquilibriumStreak(){
+  state.eqStreak=0;
+  state.eqReached=false;
+}
+
+function logEvent(msg){
+  const box=$('logBox');
+  if(box.children.length===1 && box.children[0].textContent.startsWith('시뮬레이션을 시작하면')){
+    box.innerHTML='';
+  }
+  const div=document.createElement('div');
+  div.innerHTML = `<b>t = ${fmt(state.t,1)}s</b> — ${msg}`;
+  box.prepend(div);
+}
+
+// ---------------- charts ----------------
+const concChart = new Chart($('concChart').getContext('2d'), {
+  type:'line',
+  data:{ labels:[], datasets:[
+    {label:'N2', data:[], borderColor:getCSS('--n2'), backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
+    {label:'H2', data:[], borderColor:getCSS('--h2'), backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
+    {label:'NH3', data:[], borderColor:getCSS('--nh3'), backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
+  ]},
+  options: baseChartOptions('농도 (mol/L)')
+});
+const rateChart = new Chart($('rateChart').getContext('2d'), {
+  type:'line',
+  data:{ labels:[], datasets:[
+    {label:'rf', data:[], borderColor:getCSS('--forward'), backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
+    {label:'rr', data:[], borderColor:getCSS('--reverse'), backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
+  ]},
+  options: baseChartOptions('반응 속도 (mol/L·s)')
+});
+function getCSS(varName){
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+function baseChartOptions(yLabel){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    animation:false,
+    interaction:{mode:'nearest', intersect:false},
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ title:{display:true,text:'시간 (s)'}, ticks:{maxTicksLimit:8} },
+      y:{ title:{display:true,text:yLabel}, beginAtZero:true }
+    }
+  };
+}
+
+// ---------------- simulation step ----------------
+function stepOnce(dt){
+  const {kf,kr} = rateConstants(state.T);
+  const cf = catalystFactor(state.catalyst);
+  const Kf = kf*cf, Kr = kr*cf;
+  const rf = Kf * state.c.N2 * Math.pow(state.c.H2,3);
+  const rr = Kr * Math.pow(state.c.NH3,2);
+  const net = rf - rr;
+
+  state.c.N2  = Math.max(0, state.c.N2  - net*dt);
+  state.c.H2  = Math.max(0, state.c.H2  - 3*net*dt);
+  state.c.NH3 = Math.max(0, state.c.NH3 + 2*net*dt);
+  state.t += dt;
+
+  return {rf,rr};
+}
+
+function tick(){
+  if(state.paused) return;
+  let lastRf=0, lastRr=0;
+  for(let i=0;i<SUBSTEPS_PER_TICK;i++){
+    const r = stepOnce(DT);
+    lastRf=r.rf; lastRr=r.rr;
+  }
+  recordPoint(lastRf,lastRr);
+  checkEquilibrium(lastRf,lastRr);
+  updateBeam(lastRf,lastRr);
+  renderStats(lastRf,lastRr);
+  renderCharts();
+}
+
+function recordPoint(rf,rr){
+  const h=state.history;
+  h.t.push(state.t);
+  h.N2.push(state.c.N2); h.H2.push(state.c.H2); h.NH3.push(state.c.NH3);
+  h.rf.push(rf); h.rr.push(rr);
+  // 데이터가 너무 많아지면 절반으로 솎아내기 (성능 보호)
+  if(h.t.length>1200){
+    for(const k of ['t','N2','H2','NH3','rf','rr']){
+      state.history[k] = state.history[k].filter((_,i)=>i%2===0);
+    }
+  }
+}
+
+function checkEquilibrium(rf,rr){
+  const denom = Math.max(rf,rr,1e-9);
+  const diff = Math.abs(rf-rr)/denom;
+  if(diff < 0.01){
+    state.eqStreak++;
+  } else {
+    state.eqStreak = Math.max(0, state.eqStreak-1);
+  }
+  if(state.eqStreak>15 && !state.eqReached){
+    state.eqReached = true;
+    logEvent(`동적 평형 도달 (r_f ≈ r_r)`);
+  }
+}
+
+function updateBeam(rf,rr){
+  const denom = rf+rr+1e-9;
+  let angle = ((rr-rf)/denom) * 22; // 정반응 우세 -> 음수(왼쪽 아래), 역반응 우세 -> 양수
+  angle = Math.max(-22, Math.min(22, angle));
+  $('beamGroup').style.transform = `rotate(${angle}deg)`;
+
+  const tagEl=$('beamTagEl'), textEl=$('beamStatusText');
+  const diff = Math.abs(rf-rr)/denom;
+  if(!state.running){
+    tagEl.textContent='대기 중'; tagEl.className='tag';
+    textEl.textContent='시작을 눌러 반응을 진행하세요';
+  } else if(diff<0.01 && state.eqReached){
+    tagEl.textContent='평형'; tagEl.className='tag eq-tag';
+    textEl.textContent='동적 평형: 정반응·역반응이 같은 속도로 진행 중';
+  } else if(rf>rr){
+    tagEl.textContent='정반응 우세'; tagEl.className='tag forward-tag';
+    textEl.textContent='NH₃가 생성되는 방향으로 진행 중';
+  } else {
+    tagEl.textContent='역반응 우세'; tagEl.className='tag reverse-tag';
+    textEl.textContent='NH₃가 분해되는 방향으로 진행 중';
+  }
+}
+
+function renderStats(rf,rr){
+  $('statTime').textContent = fmt(state.t,1)+" s";
+  const {kf,kr} = rateConstants(state.T);
+  const Ktheory = kf/kr;
+  const denomK = state.c.N2*Math.pow(state.c.H2,3);
+  const Kobs = denomK>1e-6 ? Math.pow(state.c.NH3,2)/denomK : NaN;
+  $('statKobs').textContent = isFinite(Kobs) ? fmt(Kobs,3) : "정의 안됨 (H₂ 또는 N₂ = 0)";
+  $('statKtheory').textContent = fmt(Ktheory,3);
+
+  const banner=$('verifyBanner');
+  if(!state.running){
+    banner.className='verify-banner pending';
+    banner.textContent='반응을 시작하면 이곳에 실시간 평형 법칙 검증 결과가 표시됩니다.';
+    return;
+  }
+  if(state.eqReached && isFinite(Kobs)){
+    const err = Math.abs(Kobs-Ktheory)/Ktheory*100;
+    if(err<8){
+      banner.className='verify-banner ok';
+      banner.textContent = `✓ 검증 완료 — 평형에서 실측 Kc(${fmt(Kobs,3)})와 이론 Kc(${fmt(Ktheory,3)})가 거의 일치합니다 (오차 ${fmt(err,1)}%). 화학 평형 법칙(질량 작용의 법칙)이 성립함을 확인했습니다.`;
+    } else {
+      banner.className='verify-banner pending';
+      banner.textContent = `조건 변화로 재평형화가 진행 중입니다. 실측 Kc(${fmt(Kobs,3)})가 이론 Kc(${fmt(Ktheory,3)})로 수렴하는 중이에요.`;
+    }
+  } else {
+    banner.className='verify-banner pending';
+    banner.textContent = '아직 평형에 도달하지 않았습니다. 정반응·역반응 속도 그래프가 서로 만날 때까지 기다려보세요.';
+  }
+}
+
+let lastChartUpdate=0;
+function renderCharts(){
+  const now=performance.now();
+  if(now-lastChartUpdate<250) return; // throttle
+  lastChartUpdate=now;
+  const h=state.history;
+  const labels = h.t.map(v=>fmt(v,1));
+  concChart.data.labels = labels;
+  concChart.data.datasets[0].data = h.N2;
+  concChart.data.datasets[1].data = h.H2;
+  concChart.data.datasets[2].data = h.NH3;
+  concChart.update('none');
+
+  rateChart.data.labels = labels;
+  rateChart.data.datasets[0].data = h.rf;
+  rateChart.data.datasets[1].data = h.rr;
+  rateChart.update('none');
+}
+
+// ---------------- controls ----------------
+btnStart.addEventListener('click', ()=>{
+  if(state.running){ return; }
+  state.running=true; state.paused=false;
+  state.t=0;
+  state.c = {N2:Number(initN2.value), H2:Number(initH2.value), NH3:Number(initNH3.value)};
+  state.T = Number(tempSlider.value);
+  state.history={t:[],N2:[],H2:[],NH3:[],rf:[],rr:[]};
+  resetEquilibriumStreak();
+  [initN2,initH2,initNH3].forEach(s=>s.disabled=true);
+  btnStart.disabled=true; btnPause.disabled=false; btnPause.textContent='일시정지';
+  perturbBtns.forEach(b=>b.disabled=false);
+  logEvent('반응 시작 — 초기 농도 설정 완료');
+  updateBeam(0,0);
+  if(timer) clearInterval(timer);
+  timer=setInterval(tick, TICK_MS);
+});
+
+btnPause.addEventListener('click', ()=>{
+  if(!state.running) return;
+  state.paused=!state.paused;
+  btnPause.textContent = state.paused? '재생' : '일시정지';
+});
+
+btnReset.addEventListener('click', ()=>{
+  state.running=false; state.paused=false;
+  if(timer) clearInterval(timer);
+  state.t=0;
+  state.history={t:[],N2:[],H2:[],NH3:[],rf:[],rr:[]};
+  resetEquilibriumStreak();
+  [initN2,initH2,initNH3].forEach(s=>s.disabled=false);
+  btnStart.disabled=false; btnPause.disabled=true; btnPause.textContent='일시정지';
+  perturbBtns.forEach(b=>b.disabled=true);
+  concChart.data.labels=[]; concChart.data.datasets.forEach(d=>d.data=[]); concChart.update('none');
+  rateChart.data.labels=[]; rateChart.data.datasets.forEach(d=>d.data=[]); rateChart.update('none');
+  $('logBox').innerHTML='<div>시뮬레이션을 시작하면 조건 변화 이력이 여기에 기록됩니다.</div>';
+  $('statTime').textContent='0.0 s';
+  $('statKobs').textContent='–'; $('statKtheory').textContent='–';
+  updateBeam(0,0);
+  renderStats(0,0);
+});
+
+// init
+updateTempHint();
+renderStats(0,0);
+</script>
+</body>
+</html>
